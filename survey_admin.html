@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WorshipPPT 설문 관리자</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --green:#2C5F2D; --green2:#4A7C59; --greenlt:#E8F5E9;
+  --border:#C8DEC9; --text:#1A2E1B; --muted:#6B8F6D;
+  --bg:#F6FAF6; --white:#fff; --red:#C0392B;
+  --amber:#F59E0B; --shadow:0 2px 12px rgba(44,95,45,.10);
+  box-sizing:border-box;
+}
+*,*::before,*::after{box-sizing:inherit;}
+body{margin:0;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* 로그인 */
+#login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+.login-box{background:var(--white);border-radius:16px;padding:40px 32px;box-shadow:var(--shadow);border:1px solid var(--border);width:100%;max-width:340px;text-align:center;}
+.login-box .logo{font-size:2rem;margin-bottom:8px;}
+.login-box h1{margin:0 0 6px;font-size:1.2rem;color:var(--green);}
+.login-box p{margin:0 0 24px;font-size:.85rem;color:var(--muted);}
+.login-box input{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:1rem;outline:none;margin-bottom:12px;font-family:inherit;}
+.login-box input:focus{border-color:var(--green);}
+.login-box button{width:100%;padding:13px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;}
+.login-box button:hover{background:var(--green2);}
+.login-err{color:var(--red);font-size:.82rem;margin-top:8px;display:none;}
+
+/* 관리자 화면 */
+#admin{display:none;}
+header{background:linear-gradient(135deg,var(--green),var(--green2));color:#fff;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+header h1{margin:0;font-size:1.1rem;}
+header .logout{background:rgba(255,255,255,.2);border:none;color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:.85rem;}
+
+.summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:20px 20px 0;}
+.stat-card{background:var(--white);border-radius:12px;padding:16px;text-align:center;box-shadow:var(--shadow);border:1px solid var(--border);}
+.stat-card .val{font-size:1.8rem;font-weight:700;color:var(--green);}
+.stat-card .lbl{font-size:.78rem;color:var(--muted);margin-top:4px;}
+
+.toolbar{display:flex;gap:10px;padding:16px 20px;align-items:center;flex-wrap:wrap;}
+.toolbar select,.toolbar input{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:.88rem;outline:none;background:var(--white);}
+.toolbar select:focus,.toolbar input:focus{border-color:var(--green);}
+.toolbar .spacer{flex:1;}
+.refresh-btn{padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.88rem;}
+
+/* 카드 목록 */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:0 20px 32px;}
+.resp-card{background:var(--white);border-radius:12px;padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);cursor:pointer;transition:border-color .15s;}
+.resp-card:hover{border-color:var(--green);}
+.resp-card .church{font-weight:700;font-size:.98rem;margin-bottom:4px;}
+.resp-card .meta{font-size:.78rem;color:var(--muted);margin-bottom:10px;}
+.stars-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.star-item{text-align:center;}
+.star-item .s-lbl{font-size:.7rem;color:var(--muted);}
+.star-item .s-val{font-size:.95rem;font-weight:700;color:var(--amber);}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.75rem;font-weight:600;background:var(--greenlt);color:var(--green);margin-right:4px;margin-bottom:4px;}
+.badge.red{background:#FEE2E2;color:var(--red);}
+.comment-preview{font-size:.82rem;color:var(--muted);margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* 상세 모달 */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:16px;}
+.overlay.show{display:flex;}
+.modal{background:var(--white);border-radius:16px;padding:28px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;position:relative;}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted);}
+.modal h2{margin:0 0 4px;font-size:1.1rem;color:var(--green);}
+.modal .m-meta{font-size:.8rem;color:var(--muted);margin-bottom:16px;}
+.modal .m-section{margin-bottom:16px;}
+.modal .m-label{font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.modal .m-val{font-size:.92rem;}
+.modal .m-stars{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;}
+.modal .m-star{background:var(--bg);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:.88rem;}
+.modal .m-star .sv{color:var(--amber);font-weight:700;}
+.modal textarea{display:none;}
+
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty .icon{font-size:2.5rem;margin-bottom:12px;}
+.loading{text-align:center;padding:60px;color:var(--muted);}
+
+.stars-disp{color:var(--amber);}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="login-wrap">
+  <div class="login-box">
+    <div class="logo">🙏</div>
+    <h1>WorshipPPT 관리자</h1>
+    <p>설문 응답을 확인하려면 비밀번호를 입력하세요.</p>
+    <input type="password" id="pw" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">로그인</button>
+    <div class="login-err" id="login-err">비밀번호가 틀렸습니다.</div>
+  </div>
+</div>
+
+<!-- 관리자 -->
+<div id="admin">
+  <header>
+    <h1>🙏 WorshipPPT 설문 관리자</h1>
+    <button class="logout" onclick="doLogout()">로그아웃</button>
+  </header>
+
+  <!-- 요약 통계 -->
+  <div class="summary">
+    <div class="stat-card"><div class="val" id="s-total">-</div><div class="lbl">총 응답수</div></div>
+    <div class="stat-card"><div class="val" id="s-overall">-</div><div class="lbl">전반적 만족도</div></div>
+    <div class="stat-card"><div class="val" id="s-ease">-</div><div class="lbl">편의성</div></div>
+    <div class="stat-card"><div class="val" id="s-search">-</div><div class="lbl">검색 유용성</div></div>
+    <div class="stat-card"><div class="val" id="s-stability">-</div><div class="lbl">안정성</div></div>
+    <div class="stat-card"><div class="val" id="s-recommend">-</div><div class="lbl">추천 의향</div></div>
+  </div>
+
+  <!-- 필터/정렬 -->
+  <div class="toolbar">
+    <select id="sort-sel" onchange="renderCards()">
+      <option value="newest">최신순</option>
+      <option value="oldest">오래된순</option>
+      <option value="rating">별점높은순</option>
+    </select>
+    <input type="text" id="search-kw" placeholder="교회명 검색..." oninput="renderCards()">
+    <div class="spacer"></div>
+    <button class="refresh-btn" onclick="loadData()">🔄 새로고침</button>
+  </div>
+
+  <div id="cards-wrap" class="cards"></div>
+</div>
+
+<!-- 상세 모달 -->
+<div class="overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 id="m-church"></h2>
+    <div class="m-meta" id="m-meta"></div>
+
+    <div class="m-section">
+      <div class="m-label">별점</div>
+      <div class="m-stars">
+        <div class="m-star"><span>전반적 만족도</span><span class="sv" id="m-overall"></span></div>
+        <div class="m-star"><span>편의성</span><span class="sv" id="m-ease"></span></div>
+        <div class="m-star"><span>검색 유용성</span><span class="sv" id="m-search"></span></div>
+        <div class="m-star"><span>안정성</span><span class="sv" id="m-stability"></span></div>
+      </div>
+    </div>
+
+    <div class="m-section" id="m-good-wrap">
+      <div class="m-label">👍 좋았던 점</div>
+      <div class="m-val" id="m-good"></div>
+    </div>
+    <div class="m-section" id="m-improve-wrap">
+      <div class="m-label">🔧 개선 의견</div>
+      <div class="m-val" id="m-improve"></div>
+    </div>
+    <div class="m-section" id="m-feature-wrap">
+      <div class="m-label">✨ 원하는 기능</div>
+      <div class="m-val" id="m-feature"></div>
+    </div>
+    <div class="m-section" id="m-etc-wrap">
+      <div class="m-label">💬 기타</div>
+      <div class="m-val" id="m-etc"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 설정 ──────────────────────────────────────────────────────────
+const ADMIN_PW = 'Jlozh990604$';   // ← 비밀번호 변경 가능
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyDb_WSIXWewBWnBaZBxGZ1XtjM3REhYGtM",
+  authDomain:        "worshipppt-f897d.firebaseapp.com",
+  projectId:         "worshipppt-f897d",
+  storageBucket:     "worshipppt-f897d.firebasestorage.app",
+  messagingSenderId: "525813963254",
+  appId:             "1:525813963254:web:bf49d1ce6335c38f004fd7"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let allData = [];
+
+// ── 로그인 ────────────────────────────────────────────────────────
+function doLogin() {
+  const pw = document.getElementById('pw').value;
+  if (pw === ADMIN_PW) {
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('admin').style.display = 'block';
+    loadData();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+  }
+}
+function doLogout() {
+  document.getElementById('login-wrap').style.display = 'flex';
+  document.getElementById('admin').style.display = 'none';
+  document.getElementById('pw').value = '';
+  allData = [];
+}
+
+// ── 데이터 로드 ───────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('cards-wrap').innerHTML = '<div class="loading">불러오는 중...</div>';
+  try {
+    const snap = await db.collection('survey_responses').orderBy('submittedAt','desc').get();
+    allData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    calcSummary();
+    renderCards();
+  } catch(e) {
+    document.getElementById('cards-wrap').innerHTML =
+      `<div class="empty"><div class="icon">⚠️</div><div>불러오기 실패: ${e.message}</div></div>`;
+  }
+}
+
+// ── 요약 통계 ─────────────────────────────────────────────────────
+function calcSummary() {
+  const n = allData.length;
+  document.getElementById('s-total').textContent = n;
+  if (!n) return;
+
+  const avg = key => {
+    const vals = allData.map(d => d.rating?.[key]).filter(v => v);
+    return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '-';
+  };
+  document.getElementById('s-overall').textContent   = avg('overall')   + ' ★';
+  document.getElementById('s-ease').textContent      = avg('ease')      + ' ★';
+  document.getElementById('s-search').textContent    = avg('search')    + ' ★';
+  document.getElementById('s-stability').textContent = avg('stability') + ' ★';
+
+  const rec = allData.filter(d => d.recommend === '적극 추천' || d.recommend === '추천').length;
+  document.getElementById('s-recommend').textContent = Math.round(rec/n*100) + '%';
+}
+
+// ── 카드 렌더 ─────────────────────────────────────────────────────
+function renderCards() {
+  const kw   = document.getElementById('search-kw').value.trim().toLowerCase();
+  const sort = document.getElementById('sort-sel').value;
+
+  let list = kw
+    ? allData.filter(d => (d.church||'').toLowerCase().includes(kw))
+    : [...allData];
+
+  if (sort === 'oldest') list.reverse();
+  else if (sort === 'rating') list.sort((a,b) => (b.rating?.overall||0)-(a.rating?.overall||0));
+
+  if (!list.length) {
+    document.getElementById('cards-wrap').innerHTML =
+      '<div class="empty"><div class="icon">📭</div><div>응답이 없습니다.</div></div>';
+    return;
+  }
+
+  document.getElementById('cards-wrap').innerHTML = list.map(d => {
+    const date = d.submittedAt?.toDate?.()
+      ? d.submittedAt.toDate().toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})
+      : '-';
+    const stars = n => n ? '★'.repeat(n)+'☆'.repeat(5-n) : '-';
+    const recBadge = d.recommend
+      ? `<span class="badge${d.recommend==='비추천'?' red':''}">${d.recommend}</span>` : '';
+    const roleBadge = d.role ? `<span class="badge">${d.role}</span>` : '';
+    const preview = d.good || d.improve || d.etc || '';
+    return `
+    <div class="resp-card" onclick='openModal(${JSON.stringify(d).replace(/'/g,"&#39;")})'>
+      <div class="church">${d.church || '(교회명 미입력)'}</div>
+      <div class="meta">${date} · ${d.period||'-'}</div>
+      <div class="stars-row">
+        <div class="star-item"><div class="s-lbl">전반적</div><div class="s-val">${stars(d.rating?.overall)}</div></div>
+        <div class="star-item"><div class="s-lbl">편의성</div><div class="s-val">${stars(d.rating?.ease)}</div></div>
+        <div class="star-item"><div class="s-lbl">검색</div><div class="s-val">${stars(d.rating?.search)}</div></div>
+        <div class="star-item"><div class="s-lbl">안정성</div><div class="s-val">${stars(d.rating?.stability)}</div></div>
+      </div>
+      <div>${recBadge}${roleBadge}</div>
+      ${preview ? `<div class="comment-preview">"${preview}"</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── 모달 ─────────────────────────────────────────────────────────
+function openModal(d) {
+  const date = d.submittedAt?.seconds
+    ? new Date(d.submittedAt.seconds*1000).toLocaleString('ko-KR')
+    : '-';
+  const stars = n => n ? ('★'.repeat(n)+'☆'.repeat(5-n)) + ` (${n}점)` : '-';
+
+  document.getElementById('m-church').textContent  = d.church || '(교회명 미입력)';
+  document.getElementById('m-meta').textContent    = `${date} · ${d.role||'-'} · ${d.period||'-'} · ${d.recommend||'-'}`;
+  document.getElementById('m-overall').textContent   = stars(d.rating?.overall);
+  document.getElementById('m-ease').textContent      = stars(d.rating?.ease);
+  document.getElementById('m-search').textContent    = stars(d.rating?.search);
+  document.getElementById('m-stability').textContent = stars(d.rating?.stability);
+
+  const setField = (wrapId, valId, val) => {
+    const show = !!val;
+    document.getElementById(wrapId).style.display = show ? '' : 'none';
+    if (show) document.getElementById(valId).textContent = val;
+  };
+  setField('m-good-wrap',    'm-good',    d.good);
+  setField('m-improve-wrap', 'm-improve', d.improve);
+  setField('m-feature-wrap', 'm-feature', d.feature);
+  setField('m-etc-wrap',     'm-etc',     d.etc);
+
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-overlay'))
+    document.getElementById('modal-overlay').classList.remove('show');
+}
+</script>
+</body>
+</html>
